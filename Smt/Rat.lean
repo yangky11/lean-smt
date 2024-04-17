@@ -34,7 +34,7 @@ open Translator Term
   | app (app (app (const ``Rat.ofScientific _) m) s) e => do
       let tmE ← applyTranslators! e
       let tmM ← applyTranslators! m
-      return Term.mkApp2 (symbolT "div") tmM (Term.mkApp2 (symbolT "^") (literalT "10") tmE)
+      return Term.mkApp2 (symbolT "/") tmM (Term.mkApp2 (symbolT "^") (literalT "10") tmE)
   | _ => return none
 
 end Smt.Rat
