@@ -9,13 +9,14 @@ import Lean
 
 import Smt.Dsl.Sexp
 import Smt.Query
-import Smt.Reconstruction.Certifying
+-- import Smt.Reconstruction.Certifying
+import Mathlib.Lean.Expr
 import Smt.Solver
 import Smt.Util
 
 namespace Smt
 
-open Lean Elab Tactic
+open Lean Meta Elab Tactic
 open Smt Query Solver
 
 initialize
@@ -130,6 +131,7 @@ private def addDeclToUnfoldOrTheorem (thms : Meta.SimpTheorems) (e : Expr) : Met
   else
     thms.add (.fvar e.fvarId!) #[] e
 
+/-
 open Reconstruction.Certifying in
 def rconsProof (name : Name) (hints : List Expr) : TacticM Unit := do
   let mvar' ← Smt.Util.rewriteIffMeta (← Tactic.getMainGoal)
@@ -159,6 +161,7 @@ def rconsProof (name : Name) (hints : List Expr) : TacticM Unit := do
     match result? with
     | none => replaceMainGoal []
     | some (_, mvarId) => replaceMainGoal [mvarId]
+-/
 
 @[tactic smt] def evalSmt : Tactic := fun stx => withMainContext do
   let goalType ← Tactic.getMainTarget
@@ -168,26 +171,23 @@ def rconsProof (name : Name) (hints : List Expr) : TacticM Unit := do
   withProcessedHints hs fun hs => do
   -- 2. Generate the SMT query.
   let cmds ← prepareSmtQuery hs
-  let query := setOption "produce-models" "true"
-            *> emitCommands cmds.reverse
-            *> checkSat
+  let query := addCommands cmds.reverse *> checkSat
   logInfo m!"goal: {goalType}"
   logInfo m!"\nquery:\n{Command.cmdsAsQuery (.checkSat :: cmds)}"
   -- 3. Run the solver.
-  let kind := smt.solver.kind.get (← getOptions)
-  let path := smt.solver.path.get? (← getOptions)
   let timeout ← parseTimeout ⟨stx[2]⟩
-  let ss ← createFromKind kind path timeout
-  let (res, ss) ← (StateT.run query ss : MetaM _)
+  let ss ← create timeout.get!
+  let res ← StateT.run' query ss
   -- 4. Print the result.
   logInfo m!"\nresult: {res}"
-  if res = .sat then
+  match res with
+  | .sat =>
     -- 4a. Print model.
-    let (model, _) ← StateT.run getModel ss
-    logInfo m!"\ncounter-model:\n{model}\n"
     throwError "unable to prove goal, either it is false or you need to define more symbols with `smt [foo, bar]`"
-  if res = .unknown then
-    throwError "unable to prove goal"
+  | .unknown => throwError "unable to prove goal"
+  | .timeout => throwError "the SMT solver timed out"
+  | .unsat => return ()
+  /-
   try
     -- 4b. Reconstruct proof.
     let (.expr [.atom "proof", .atom nnp], _) ← StateT.run getProof ss
@@ -198,6 +198,8 @@ def rconsProof (name : Name) (hints : List Expr) : TacticM Unit := do
     rconsProof name hs
   catch e =>
     logInfo m!"failed to reconstruct proof: {e.toMessageData}"
+  -/
+/-
 where
   unquote s := s.extract ⟨1⟩ (s.endPos - ⟨1⟩)
   skipImports (s : String) := Id.run do
@@ -206,6 +208,7 @@ where
       s := s.dropWhile (· != '\n')
       s := s.drop 1
     return s
+-/
 
 @[tactic smtShow] def evalSmtShow : Tactic := fun stx => withMainContext do
   let goalType ← Tactic.getMainTarget
@@ -215,5 +218,88 @@ where
   let cmds ← prepareSmtQuery hs
   let cmds := .checkSat :: cmds
   logInfo m!"goal: {goalType}\n\nquery:\n{Command.cmdsAsQuery cmds}"
+
+def elimDvd : TacticM Unit := do
+  return ()
+
+def elimPrime : TacticM Unit := do
+  return ()
+
+def elimLog : TacticM Unit := do
+  return ()
+
+-- pow
+def elimSqrt : TacticM Unit := do
+  return ()
+
+def elimAbs : TacticM Unit := do
+  return ()
+
+def elimOddEven : TacticM Unit := do
+  return ()
+
+def smtPreprocess : TacticM Unit := do
+  logInfo "smtPreprocess"
+  elimDvd
+  elimPrime
+  elimLog
+  elimSqrt
+  elimAbs
+  elimOddEven
+
+def getLocalHypotheses : MetaM (List Expr) := do
+  let ctx ← getLCtx
+  let mut hs := #[]
+  for localDecl in ctx do
+    if localDecl.isImplementationDetail then
+      continue
+    let e ← instantiateMVars localDecl.toExpr
+    let et ← inferType e >>= instantiateMVars
+    if (← isProp et) then
+      hs := hs.push localDecl.toExpr
+  return hs.toList.eraseDups
+
+axiom SMT_VERIF (P : Prop) : P
+
+/-
+  Close the current goal using the above axiom.
+  It is crucial to ensure that this is only invoked when an `unsat` result is returned
+-/
+def closeWithAxiom : TacticM Unit := do
+  let _ ← evalTactic (← `(tactic| apply SMT_VERIF))
+
+def smtSolve : TacticM Unit := withMainContext do
+  let goalType ← Tactic.getMainTarget
+  -- 1. Get the hints passed to the tactic.
+  let hs ← getLocalHypotheses
+  withProcessedHints hs fun hs => do
+    -- 2. Generate the SMT query.
+    let cmds ← prepareSmtQuery hs
+    let query := addCommands cmds.reverse *> checkSat
+    logInfo m!"goal: {goalType}"
+    logInfo m!"\nquery:\n{Command.cmdsAsQuery (.checkSat :: cmds)}"
+    -- 3. Run the solver.
+    let timeout := some 10
+    let ss ← create timeout.get!
+    let res ← StateT.run' query ss
+    -- 4. Print the result.
+    logInfo m!"\nresult: {res}"
+    match res with
+    | .sat =>
+      -- 4a. Print model.
+      throwError "unable to prove goal, either it is false or you need to define more symbols with `smt [foo, bar]`"
+    | .unknown => throwError "unable to prove goal"
+    | .timeout => throwError "the SMT solver timed out"
+    | .unsat => closeWithAxiom
+
+syntax "smt_preprocess" : tactic
+syntax "smt!" : tactic
+
+elab_rules : tactic
+  | `(tactic | smt_preprocess) => smtPreprocess
+  | `(tactic | smt!) => do
+    smtPreprocess
+    smtSolve
+
 
 end Smt

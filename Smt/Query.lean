@@ -33,7 +33,7 @@ abbrev QueryBuilderM := ReaderT QueryBuilderM.Config <| StateT QueryBuilderM.Sta
 
 namespace QueryBuilderM
 
-def addCommand (e : Expr) (cmd : Command) : QueryBuilderM Unit :=
+private def addCommand (e : Expr) (cmd : Command) : QueryBuilderM Unit :=
   modify fun st => { st with
     graph := st.graph.addVertex e
     commands := st.commands.insert e cmd
@@ -82,7 +82,7 @@ where
   countLams : Expr → Nat
     | lam _ _ t _ => 1 + countLams t
     | _ => 0
-  
+
 /-- Given a local (`let`) or global (`const`) definition, translate its body applied to `params`.
 We expect `params` to contain enough free variables to make this a ground term. For example, given
 `def foo (x : Int) : Int → Int := t`, we need `params = #[x, y]` and translate `t[x/x] y`.
@@ -205,8 +205,18 @@ where
 
     trace[smt.debug.translate.query] "deps: {deps}"
     for e' in deps do
-      go e'
-      addDependency e e'
+      if e' matches const `Real.sqrt .. then
+        logInfo "find Real.sqrt_property"
+        addCommand (mkConst `Real.sqrt_property1) <| .assert (forallT "__sqrt_x" (symbolT "Real") (Term.mkApp2 (symbolT "=>") (Term.mkApp2 (symbolT ">=") (symbolT "__sqrt_x") (literalT "0")) (Term.mkApp2 (symbolT "and") (Term.mkApp2 (symbolT ">=") (appT (symbolT "Real.sqrt") (symbolT "__sqrt_x")) (literalT "0")) (Term.mkApp2 (symbolT "=") (mkApp2 (symbolT "^") (appT (symbolT "Real.sqrt") (symbolT "__sqrt_x")) (literalT "2")) (symbolT "__sqrt_x")))))
+        addDependency (mkConst `Real.sqrt_property1) (mkConst `Real.sqrt_property2)
+        addCommand (mkConst `Real.sqrt_property2) <| .assert (forallT "__sqrt_x" (symbolT "Real") (Term.mkApp2 (symbolT "=") (appT (symbolT "Real.sqrt") (Term.mkApp2 (symbolT "^") (symbolT "__sqrt_x") (literalT "2"))) (appT (symbolT "abs") (symbolT "__sqrt_x"))))
+        go (mkConst `Real.sqrt)
+        addDependency (mkConst `Real.sqrt_property2) (mkConst `Real.sqrt)
+
+        addDependency e (mkConst `Real.sqrt_property1)
+      else
+        go e'
+        addDependency e e'
 
 end QueryBuilderM
 
@@ -235,7 +245,7 @@ def natConstAssert (n : String) (args : List Name) : Term → MetaM Term
       | t :: ts => appT (applyList n ts) (symbolT t.toString)
 
 /-- TODO: Remove this function and its `Nat` those hacks. -/
-def addCommand (cmd : Command) (cmds : List Command) : MetaM (List Command) := do
+private def addCommand (cmd : Command) (cmds : List Command) : MetaM (List Command) := do
   let mut cmds := cmds
   cmds := cmd :: cmds
   match cmd with
