@@ -18,7 +18,7 @@ namespace Smt
 inductive Kind where
   --| boolector
   | cvc5
-  | vampire
+  -- | vampire
   --| yices
   | z3
 deriving DecidableEq, Inhabited, Hashable
@@ -26,7 +26,7 @@ deriving DecidableEq, Inhabited, Hashable
 def allKinds : List Kind := [
   -- Kind.boolector,
   Kind.cvc5,
-  Kind.vampire,
+  -- Kind.vampire,
   -- Kind.yices,
   Kind.z3
 ]
@@ -35,7 +35,7 @@ instance : ToString Kind where
   toString
     --| .boolector => "boolector"
     | .cvc5      => "cvc5"
-    | .vampire   => "vampire"
+    -- | .vampire   => "vampire"
     --| .yices     => "yices"
     | .z3        => "z3"
 
@@ -44,7 +44,7 @@ instance : Lean.KVMap.Value Kind where
   ofDataValue?
     --| "boolector" => Kind.boolector
     | "cvc5"      => Kind.cvc5
-    | "vampire"   => Kind.vampire
+    -- | "vampire"   => Kind.vampire
     --| "yices"     => Kind.yices
     | "z3"        => Kind.z3
     | _           => none
@@ -93,7 +93,7 @@ def create (timeoutSecs : Nat) : IO SolverState := do
   let args : HashMap Kind (Array String) := HashMap.ofList [
     --(.boolector, #["--smt2", "--time", toString timeoutSecs]),
     (.cvc5,      #["--quiet", "--incremental", "--lang", "smt", "--dag-thresh=0", "--enum-inst", "--tlimit", toString (1000 * timeoutSecs)]),
-    (.vampire,   #["--input_syntax", "smtlib2", "--output_mode", "smtcomp", "--time_limit", toString timeoutSecs]),
+    -- (.vampire,   #["--input_syntax", "smtlib2", "--output_mode", "smtcomp", "--time_limit", toString timeoutSecs]),
     --(.yices,     #["--timeout", toString timeoutSecs]),
     (.z3,        #["-smt2", s!"-T:{timeoutSecs}"])
   ]
