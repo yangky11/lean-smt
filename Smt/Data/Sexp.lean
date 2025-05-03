@@ -99,7 +99,7 @@ def parseMany (s : String) : Except ParseError (List Sexp) := do
   let tks ← tokenize s.toSubstring
   let (sexps, tks) ← parseManyAux tks.toList
   if !tks.isEmpty then
-    throw <| .malformed s!"unexpected '{tks.get! 0}'"
+    throw <| .malformed s!"unexpected '{tks[0]!}'"
   return sexps.toList
 
 /-- Parse a single s-expression. Note that the string may contain extra data, but parsing will

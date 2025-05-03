@@ -6,6 +6,7 @@ Authors: Abdalrhman Mohamed
 -/
 
 import Lean
+import Std.Data.HashSet
 
 /-- Returns `true` if `sub` is a substring of `s` and `false` otherwise. -/
 partial def String.isSubStrOf (sub : String) (s : String) : Bool :=
@@ -20,6 +21,7 @@ namespace Smt.Util
 open Lean
 open Lean.Expr
 open Elab.Tactic
+open Std
 
 /-- Prints the given expression in AST format. -/
 def exprToString : Expr → String
@@ -55,7 +57,7 @@ def countConst (e : Expr) (c : Name) : Nat :=
 
 /-- Set of constants defined by SMT-LIB. -/
 def smtConsts : HashSet String :=
-  List.foldr (fun c s => s.insert c) HashSet.empty
+  List.foldr (fun c s => s.insert c) HashSet.emptyWithCapacity
   [
     "=",
     "distinct",
