@@ -10,6 +10,7 @@ import Lean.Meta.Eqns
 import Lean.Meta.Tactic.Assert
 import Lean.Elab.Tactic.Basic
 import Lean.Elab.Term
+import Std.Data.HashSet
 
 import Smt.Tactic.WHNFSmt
 
@@ -33,7 +34,7 @@ TODO(WN): We could have a custom `smt` tactic mode which provides explicit stora
 and displays them more nicely. -/
 
 namespace Smt
-open Lean Meta Elab Term Tactic
+open Lean Meta Elab Term Tactic Std
 
 /-- The user name of an equational definition for 'nm'. -/
 def eqnDefName (nm : Name) : Name :=
@@ -172,7 +173,7 @@ def specializeEqnDef (x : FVarId) (args : Array Expr) (opaqueConsts : HashSet Na
         let (fvEq, mvarId) ← (← mvarId.assert (nm ++ `specialization) eqnRw pfRw).intro1P
         return (fvEq, [mvarId])
 
-syntax blockingConsts := "blocking [" term,* "]"
+syntax blockingConsts := "blocking" "[" term,* "]"
 
 /-- `specialize_def foo [arg₁, ⋯, argₙ]` introduces a new equational definition `foo.arg₁.⋯.argₙ`
 whose body is the partial evaluation of `foo arg₁ ⋯ argₙ`. During reduction, all SMT-LIB builtins
@@ -193,7 +194,7 @@ open Lean Meta Elab Tactic in
   | `(tactic|specialize_def $i [ $ts,* ]) => go i ts {}
   | `(tactic|specialize_def $i [ $ts,* ] blocking [ $bs,* ]) =>
     withMainContext do
-      let opaqueConsts ← bs.getElems.foldlM (init := HashSet.empty) fun cs b => do
+      let opaqueConsts ← bs.getElems.foldlM (init := HashSet.emptyWithCapacity) fun cs b => do
         match ← elabTerm b none with
         | .const nm _ => return cs.insert nm
         | .fvar fv    => return cs.insert (← fv.getDecl).userName

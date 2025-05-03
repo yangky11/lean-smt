@@ -27,7 +27,7 @@ initialize
   registerTraceClass `smt.debug.translate.expr
 
 syntax smtHints := ("[" term,* "]")?
-syntax smtTimeout := ("(timeout := " num ")")?
+syntax smtTimeout := ("(" "timeout" " := " num ")")?
 
 /-- `smt` converts the current goal into an SMT query and checks if it is
 satisfiable. By default, `smt` generates the minimum valid SMT query needed to
@@ -94,18 +94,6 @@ def prepareSmtQuery (hs : List Expr) : TacticM (List Command) := do
   let goalId ← Lean.mkFreshMVarId
   Lean.Meta.withLocalDeclD goalId.name (mkNot goalType) fun g =>
   Query.generateQuery g hs
-
-def elabProof (text : String) : TacticM Name := do
-  let name ← mkFreshId
-  let name := Name.str name.getPrefix ("th0" ++ name.getString)
-  let text := text.replace "th0" s!"{name}"
-  let (env, log) ← process text (← getEnv) .empty "<proof>"
-  _ ← modifyEnv (fun _ => env)
-  for m in log.msgs do
-    trace[smt.debug.reconstruct] (← m.toString)
-  if log.hasErrors then
-    throwError "encountered errors elaborating cvc5 proof"
-  return name
 
 def evalAnyGoals (tactic : TacticM Unit) : TacticM Unit := do
   let mvarIds ← getGoals
@@ -175,8 +163,7 @@ def rconsProof (name : Name) (hints : List Expr) : TacticM Unit := do
   logInfo m!"goal: {goalType}"
   logInfo m!"\nquery:\n{Command.cmdsAsQuery (.checkSat :: cmds)}"
   -- 3. Run the solver.
-  let timeout ← parseTimeout ⟨stx[2]⟩
-  let ss ← create timeout.get!
+  let ss ← create (← parseTimeout ⟨stx[2]⟩).get!
   let res ← StateT.run' query ss
   -- 4. Print the result.
   logInfo m!"\nresult: {res}"
@@ -279,8 +266,7 @@ def smtSolve : TacticM Unit := withMainContext do
     logInfo m!"goal: {goalType}"
     logInfo m!"\nquery:\n{Command.cmdsAsQuery (.checkSat :: cmds)}"
     -- 3. Run the solver.
-    let timeout := some 10
-    let ss ← create timeout.get!
+    let ss ← create 10
     let res ← StateT.run' query ss
     -- 4. Print the result.
     logInfo m!"\nresult: {res}"

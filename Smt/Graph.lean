@@ -5,8 +5,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Abdalrhman Mohamed, Wojciech Nawrocki
 -/
 
-import Lean.Data.HashMap
-import Lean.Data.HashSet
+import Std.Data.HashMap
+import Std.Data.HashSet
 import Lean.Message
 
 open Lean Std
@@ -17,25 +17,25 @@ namespace Graph
 
 variable {α} {β} [BEq α] [Hashable α] (g : Graph α β) (v u : α) (e : β)
 
-def empty : Graph α β := HashMap.empty
+def empty : Graph α β := HashMap.emptyWithCapacity
 
 def vertices : List α := g.fold (fun a v _ => v :: a) []
 
 def neighbors? : Option (List α) :=
-  g.find? v >>= fun es => some (es.fold (fun a v _ => v :: a) [])
+  g.get? v >>= fun es => some (es.fold (fun a v _ => v :: a) [])
 
 def neighbors! : List α := match (g.neighbors? v) with
   | some ns => ns
   | none    => panic! "vertex is not in the graph"
 
-def addVertex : Graph α β := g.insert v HashMap.empty
+def addVertex : Graph α β := g.insert v HashMap.emptyWithCapacity
 
-def addEdge : Graph α β := g.insert v ((g.find! v).insert u e)
+def addEdge : Graph α β := g.insert v ((g.get! v).insert u e)
 
-def weight? : Option β := g.find? v >>= fun es => es.find? u
+def weight? : Option β := g.get? v >>= fun es => es.get? u
 
 partial def dfs [Monad m] (f : α → m Unit) : m Unit :=
-  StateT.run' (s := HashSet.empty) do
+  StateT.run' (s := HashSet.emptyWithCapacity) do
     for v in g.vertices do
       visitVertex v
 where
@@ -49,7 +49,7 @@ where
     f v
 
 partial def orderedDfs [Monad m] (vs : List α) (f : α → m Unit) : m Unit :=
-  StateT.run' (s := HashSet.empty) do
+  StateT.run' (s := HashSet.emptyWithCapacity) do
     for v in vs do
       visitVertex v
 where

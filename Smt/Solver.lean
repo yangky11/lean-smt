@@ -6,12 +6,12 @@ Authors: Abdalrhman Mohamed
 -/
 
 import Lean
-import Batteries.Data.HashMap
+import Std.Data.HashMap
 import Smt.Commands
 import Smt.Data.Sexp
 import Smt.Term
 
-open Batteries
+open Std
 
 namespace Smt
 
@@ -140,7 +140,7 @@ def checkSat : SolverT m Result := do
 
   for kind in allKinds do
     args := args.push s!"--{kind.toDefaultPath}"
-    args := args.push $ state.args[kind].get!.foldl (fun r s => r ++ " " ++ s) ""
+    args := args.push $ state.args[kind]!.foldl (fun r s => r ++ " " ++ s) ""
 
   let proc ← IO.Process.spawn {
     cmd := "smt-portfolio"
@@ -150,7 +150,7 @@ def checkSat : SolverT m Result := do
     stderr := .piped
   }
 
-  for c in state.commands.reverse ++ [.exit] do
+  for c in state.commands.reverse ++ [Command.exit] do
     proc.stdin.putStr s!"{c}\n"
 
   proc.stdin.flush

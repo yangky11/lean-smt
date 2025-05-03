@@ -6,6 +6,7 @@ Authors: Abdalrhman Mohamed, Tomaz Gomes Mascarenhas, Wojciech Nawrocki
 -/
 
 import Lean
+import Std.Data.HashMap
 import Smt.Commands
 import Smt.Graph
 import Smt.Solver
@@ -15,7 +16,7 @@ import Smt.Tactic.EqnDef
 
 namespace Smt.Query
 
-open Lean Expr Meta
+open Lean Expr Meta Std
 open Solver Term
 
 -- TODO: move all `Nat` hacks in this file to `Nat.lean`; see also issue #27
@@ -27,7 +28,7 @@ structure QueryBuilderM.Config where
 
 structure QueryBuilderM.State where
   graph : Graph Expr Unit := .empty
-  commands : HashMap Expr Command := .empty
+  commands : HashMap Expr Command := .emptyWithCapacity
 
 abbrev QueryBuilderM := ReaderT QueryBuilderM.Config <| StateT QueryBuilderM.State TranslationM
 
@@ -262,7 +263,7 @@ private def addCommand (cmd : Command) (cmds : List Command) : MetaM (List Comma
 
 def emitVertex (cmds : HashMap Expr Command) (e : Expr) : StateT (List Command) MetaM Unit := do
   trace[smt.debug.translate.query] "emitting {e}"
-  let some cmd := cmds.find? e | throwError "no command was computed for {e}"
+  let some cmd := cmds.get? e | throwError "no command was computed for {e}"
   set (← addCommand cmd (← get))
 
 def generateQuery (goal : Expr) (hs : List Expr) : MetaM (List Command) :=

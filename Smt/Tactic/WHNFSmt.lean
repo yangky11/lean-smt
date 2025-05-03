@@ -7,14 +7,15 @@ Authors: Wojciech Nawrocki
 import Smt.Tactic.WHNFConfigurable
 import Lean.Elab.Term
 import Lean.Elab.Binders
+import Std.Data.HashSet
 
 namespace Smt
 
-open Lean
+open Lean Std
 
 /-- Constants which SMT knows about and we thus don't want to unfold. -/
 def smtConsts : HashSet Name :=
-  List.foldr (fun c s => s.insert c) HashSet.empty
+  List.foldr (fun c s => s.insert c) HashSet.emptyWithCapacity
   [
     ``Eq,
     ``BEq.beq,
@@ -100,7 +101,7 @@ def opaquePred (opaqueConsts : HashSet Name) (_ : Meta.Config) (ci : ConstantInf
   return true
 
 /-- Runs type-theoretic reduction, but never unfolding SMT builtins and with extra rules
-to let-lift `let-opaque` bindings. This can produce linearly-sized terms in certain cases. 
+to let-lift `let-opaque` bindings. This can produce linearly-sized terms in certain cases.
 
 Constants with names in `opaqueConsts` are also not unfolded. -/
 def smtOpaqueReduce (e : Expr) (opaqueConsts : HashSet Name := {}) : MetaM Expr :=
@@ -109,7 +110,7 @@ def smtOpaqueReduce (e : Expr) (opaqueConsts : HashSet Name := {}) : MetaM Expr 
   }) do Smt.reduce (skipTypes := false) e |>.run {
     letPushElim := true
   }
-  
+
 open Parser in
 syntax (name := «let_opaque») withPosition("let_opaque " letDecl) optional(";") term : term
 

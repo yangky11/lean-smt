@@ -19,9 +19,7 @@ open Translator Term
   | const ``Int.sub _  => return symbolT "-"
   | const ``Int.neg _  => return symbolT "-"
   | const ``Int.mul _  => return symbolT "*"
-  | const ``Int.div _  -- TODO: one of these is probably wrong
   | const ``Int.ediv _ => return symbolT "div"
-  | const ``Int.mod _  -- TODO: one of these is probably wrong
   | const ``Int.emod _ => return symbolT "mod"
   | const ``Int.le _   => return symbolT "<="
   | const ``Int.lt _   => return symbolT "<"

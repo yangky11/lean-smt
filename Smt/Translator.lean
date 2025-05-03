@@ -6,6 +6,7 @@ Authors: Abdalrhman Mohamed, Wojciech Nawrocki
 -/
 
 import Lean
+import Std.Data.HashMap
 
 import Smt.Term
 import Smt.Util
@@ -13,7 +14,7 @@ import Smt.Attribute
 
 namespace Smt
 
-open Lean Meta Expr
+open Lean Meta Expr Std
 open Attribute Term
 
 structure TranslationM.State where
@@ -21,7 +22,7 @@ structure TranslationM.State where
   in order to build a dependency graph. The value is reset at the `translateExpr` entry point. -/
   depConstants : NameSet := .empty
   /-- Memoizes `applyTranslators?` calls together with what they add to `depConstants`. -/
-  cache : HashMap Expr (Option (Term × NameSet)) := .empty
+  cache : HashMap Expr (Option (Term × NameSet)) := .emptyWithCapacity
 
 abbrev TranslationM := StateT TranslationM.State MetaM
 
@@ -54,7 +55,7 @@ opaque getTranslators : MetaM (List (Translator × Name))
 
 /-- Return a cached translation of `e` if found, otherwise run `k e` and cache the result. -/
 def withCache (k : Translator) (e : Expr) : TranslationM (Option Term) := do
-  match (← get).cache.find? e with
+  match (← get).cache.get? e with
   | some (some (tm, deps)) =>
     modify fun st => { st with depConstants := st.depConstants.union deps }
     return some tm

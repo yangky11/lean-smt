@@ -33,11 +33,11 @@ open Lean
 open Term
 open scoped Term.Notation
 
-def defNat : Command := .defineSort "Nat" [] (`"Int")
+def defNat : Command := .defineSort "Nat" [] (symbolT "Int")
 
 def defNatSub : Command :=
-  .defineFun "Nat.sub" [("x", `"Nat"), ("y", `"Nat")] (`"Nat")
-    (`"ite" • (`"<" • `"x" • `"y") • ``"0" • (`"-" • `"x" • `"y"))
+  .defineFun "Nat.sub" [("x", symbolT "Nat"), ("y", symbolT "Nat")] (symbolT "Nat")
+    (symbolT "ite" • (symbolT "<" • symbolT "x" • symbolT "y") • ``"0" • (symbolT "-" • symbolT "x" • symbolT "y"))
     false
 
 open ToSexp in
